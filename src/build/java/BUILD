@@ -53,7 +53,10 @@ go_test(
 go_test(
     name = 'ar_writer_test',
     srcs = ['ar_writer_test.go'],
-    data = glob(['test_data/*.a']),
+    data = glob([
+        'test_data/*.a',
+        'test_data2/*.a',
+    ]),
     deps = [
         ':java',
         '//third_party/go:ar',

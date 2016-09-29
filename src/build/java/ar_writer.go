@@ -1,9 +1,11 @@
 package java
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/blakesmith/ar"
@@ -39,6 +41,7 @@ func addArFile(w *ar.Writer, path string) error {
 	}
 	defer f.Close()
 	r := ar.NewReader(f)
+	var filenames []byte
 	for {
 		hdr, err := r.Next()
 		if err == io.EOF {
@@ -46,6 +49,26 @@ func addArFile(w *ar.Writer, path string) error {
 		} else if err != nil {
 			return err
 		}
+		// Handle gcc index entries
+		if hdr.Name == "/" {
+			continue // This is the index, we will get ar to regenerate it.
+		} else if hdr.Name == "//" {
+			// This is some sort of index of filenames, we need to keep them for later.
+			filenames = make([]byte, hdr.Size)
+			if err := io.Copy(bytes.NewWriter(filenames), r); err != nil {
+				return err
+			}
+			continue
+		}
+		// Handle "filenames" that are an index into the filenames array
+		if strings.HasPrefix(hdr.Name, "/") {
+			i, err := strconv.Atoi(strings.TrimPrefix(hdr.Name))
+			if err != nil {
+				return err // Not sure, maybe we should continue?
+			}
+
+		}
+
 		// For unknown reasons they always seem to end in / unnecessarily. Strip it off.
 		hdr.Name = strings.TrimSuffix(hdr.Name, "/")
 		log.Info("Adding %s from %s, mode %d", hdr.Name, path, hdr.Mode)
