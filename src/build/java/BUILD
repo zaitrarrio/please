@@ -9,8 +9,12 @@ java_binary(
 
 go_library(
     name = 'java',
-    srcs = ['zip_writer.go'],
+    srcs = [
+        'ar_writer.go',
+        'zip_writer.go',
+    ],
     deps = [
+        '//third_party/go:ar',
         '//third_party/go:logging',
         '//third_party/go/zip',
     ],
@@ -43,5 +47,16 @@ go_test(
     deps = [
         ':java',
         '//third_party/go/zip',
+    ],
+)
+
+go_test(
+    name = 'ar_writer_test',
+    srcs = ['ar_writer_test.go'],
+    data = glob(['test_data/*.a']),
+    deps = [
+        ':java',
+        '//third_party/go:ar',
+        '//third_party/go:testify',
     ],
 )

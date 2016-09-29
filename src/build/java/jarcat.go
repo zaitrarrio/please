@@ -124,6 +124,7 @@ var opts struct {
 	DumbMode              bool              `short:"d" long:"dumb" description:"Dumb mode, an alias for --suffix='' --exclude_suffix='' --include_other"`
 	NoDirEntries          bool              `short:"n" long:"nodir_entries" description:"Don't add directory entries to zip"`
 	RenameDirs            map[string]string `short:"r" long:"rename_dir" description:"Rename directories within zip file"`
+	Ar                    bool              `short:"a" long:"ar" description:"Operate on ar archives (most other options are ignored)"`
 }
 
 func main() {
@@ -134,6 +135,12 @@ func main() {
 		opts.IncludeOther = true
 	}
 	cli.InitLogging(opts.Verbosity)
+	if opts.Ar {
+		if err := java.CombineAr(opts.Out, opts.In, opts.Suffix, opts.ExcludeSuffix); err != nil {
+			log.Fatalf("Error combining ar files: %s\n", err)
+		}
+		os.Exit(0)
+	}
 	if err := combine(opts.Out, opts.In, opts.Preamble, opts.StripPrefix, opts.MainClass,
 		opts.ExcludeInternalPrefix, opts.ExcludeSuffix, opts.Suffix, opts.IncludeInternalPrefix,
 		opts.Strict, opts.IncludeOther, opts.AddInitPy, !opts.NoDirEntries, opts.RenameDirs); err != nil {

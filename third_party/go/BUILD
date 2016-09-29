@@ -173,3 +173,9 @@ go_get(
     patch = 'semver_text_unmarshaler.patch',
     revision = '8ab6407b697782a06568d4b7f1db25550ec2e4c6',
 )
+
+go_get(
+    name = 'ar',
+    get = 'github.com/blakesmith/ar',
+    revision = '8bd4349a67f2533b078dbc524689d15dba0f4659',
+)
