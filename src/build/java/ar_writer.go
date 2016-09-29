@@ -10,7 +10,7 @@ import (
 )
 
 // Combines a sequence of ar files into one.
-func CombineAr(outFile, inDir, suffix, excludeSuffix string) error {
+func CombineAr(outFile, inDir string, suffix, excludeSuffix []string) error {
 	f, err := os.Create(outFile)
 	if err != nil {
 		return err
@@ -21,7 +21,7 @@ func CombineAr(outFile, inDir, suffix, excludeSuffix string) error {
 		return err
 	}
 	if err := filepath.Walk(inDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info.IsDir() || !strings.HasSuffix(path, suffix) || strings.HasSuffix(path, excludeSuffix) {
+		if err != nil || path == outFile || info.IsDir() || !MatchesSuffix(path, suffix) || MatchesSuffix(path, excludeSuffix) {
 			return err
 		}
 		log.Notice("Adding %s", path)
@@ -48,7 +48,7 @@ func addArFile(w *ar.Writer, path string) error {
 		}
 		// For unknown reasons they always seem to end in / unnecessarily. Strip it off.
 		hdr.Name = strings.TrimSuffix(hdr.Name, "/")
-		log.Info("Adding %s from %s", hdr.Name, path)
+		log.Info("Adding %s from %s, mode %d", hdr.Name, path, hdr.Mode)
 		if err := w.WriteHeader(hdr); err != nil {
 			return err
 		}
@@ -57,4 +57,14 @@ func addArFile(w *ar.Writer, path string) error {
 		}
 	}
 	return nil
+}
+
+// MatchesSuffix returns true if the given path matches any one of the given suffixes.
+func MatchesSuffix(path string, suffixes []string) bool {
+	for _, suffix := range suffixes {
+		if suffix != "" && strings.HasSuffix(path, suffix) {
+			return true
+		}
+	}
+	return false
 }

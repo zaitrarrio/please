@@ -177,5 +177,6 @@ go_get(
 go_get(
     name = 'ar',
     get = 'github.com/blakesmith/ar',
+    patch = 'ar_fix_octal.patch',
     revision = '8bd4349a67f2533b078dbc524689d15dba0f4659',
 )

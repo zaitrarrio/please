@@ -61,8 +61,8 @@ func combine(out, in, preamble, stripPrefix, mainClass, excludeInternalPrefix st
 		if path == out {
 			return nil
 		} else if !info.IsDir() {
-			if !matchesSuffix(path, excludeSuffixes) {
-				if matchesSuffix(path, suffix) {
+			if !java.MatchesSuffix(path, excludeSuffixes) {
+				if java.MatchesSuffix(path, suffix) {
 					log.Debug("Adding zip file %s", path)
 					if err := java.AddZipFile(w, path, includeInternalPrefixes, excludeInternalPrefixes, stripPrefix, strict, renameDirs); err != nil {
 						return fmt.Errorf("Error adding %s to zipfile: %s", path, err)
@@ -96,15 +96,6 @@ func combine(out, in, preamble, stripPrefix, mainClass, excludeInternalPrefix st
 		return java.AddInitPyFiles(w)
 	}
 	return nil
-}
-
-func matchesSuffix(path string, suffixes []string) bool {
-	for _, suffix := range suffixes {
-		if suffix != "" && strings.HasSuffix(path, suffix) {
-			return true
-		}
-	}
-	return false
 }
 
 var opts struct {

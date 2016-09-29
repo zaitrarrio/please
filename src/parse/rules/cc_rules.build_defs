@@ -225,17 +225,18 @@ def cc_static_library(name, srcs=None, hdrs=None, compiler_flags=None, linker_fl
             'cc_hdrs': ':_%s#lib_hdrs' % name,
             'cc': ':' + name,
         }
+    jarcat_tool, tools = _tool_path(CONFIG.JARCAT_TOOL)
     build_rule(
         name = name,
         deps = deps,
         outs = ['lib%s.a' % name],
-        cmd = '(find . -name "*.a" | xargs -n 1 %s x) && %s rcs $OUT `find . -name "*.o" | sort`' %
-            (CONFIG.AR_TOOL, CONFIG.AR_TOOL),
+        cmd = '%s -a -i . -o $OUT -s .a' % jarcat_tool,
         needs_transitive_deps = True,
         output_is_complete = True,
         visibility = visibility,
         building_description = 'Archiving...',
         provides = provides,
+        tools = tools,
     )
 
 
