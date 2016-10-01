@@ -7,8 +7,9 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
-	"github.com/blakesmith/ar"
+	"github.com/peterebden/ar"
 )
 
 // Combines a sequence of ar files into one.
@@ -19,6 +20,10 @@ func CombineAr(outFile, inDir string, suffix, excludeSuffix []string) error {
 	}
 	defer f.Close()
 	w := ar.NewWriter(f)
+	// We have to write an initial index, so we have to defer writing the actual contents until then.
+	// We could also read them twice if we wanted to save memory, but the code this way is simpler.
+	headers := []*ar.Header{}
+	contents := [][]byte{}
 	if err := w.WriteGlobalHeader(); err != nil {
 		return err
 	}
@@ -27,59 +32,87 @@ func CombineAr(outFile, inDir string, suffix, excludeSuffix []string) error {
 			return err
 		}
 		log.Notice("Adding %s", path)
-		return addArFile(w, path)
+		h, c, err := addArFile(path)
+		headers = append(headers, h...)
+		contents = append(contents, c...)
+		return err
 	}); err != nil {
 		return err
+	}
+	// Now write the the filename index
+	index, indexContents := deriveIndex(headers)
+	log.Notice("Writing file index (%d bytes)", len(indexContents))
+	if err := w.WriteHeader(index); err != nil {
+		return err
+	}
+	if _, err := io.Copy(w, bytes.NewReader(indexContents)); err != nil {
+		return err
+	}
+	// And the actual contents
+	for i, hdr := range headers {
+		log.Info("Writing %s (%d / %d)", hdr.Name, hdr.Size, len(contents[i]))
+		if err := w.WriteHeader(hdr); err != nil {
+			return err
+		}
+		if _, err := io.Copy(w, bytes.NewReader(contents[i])); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func addArFile(w *ar.Writer, path string) error {
+func addArFile(path string) ([]*ar.Header, [][]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	defer f.Close()
 	r := ar.NewReader(f)
-	var filenames []byte
+	headers := []*ar.Header{}
+	contents := [][]byte{}
+	var filenames string
 	for {
 		hdr, err := r.Next()
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			return err
+			return nil, nil, err
 		}
 		// Handle gcc index entries
 		if hdr.Name == "/" {
 			continue // This is the index, we will get ar to regenerate it.
 		} else if hdr.Name == "//" {
-			// This is some sort of index of filenames, we need to keep them for later.
-			filenames = make([]byte, hdr.Size)
-			if err := io.Copy(bytes.NewWriter(filenames), r); err != nil {
-				return err
+			// This is an index of filenames that are too long
+			var buf bytes.Buffer
+			if _, err := io.Copy(&buf, r); err != nil {
+				return nil, nil, err
 			}
+			filenames = buf.String()
 			continue
 		}
 		// Handle "filenames" that are an index into the filenames array
 		if strings.HasPrefix(hdr.Name, "/") {
-			i, err := strconv.Atoi(strings.TrimPrefix(hdr.Name))
+			i, err := strconv.Atoi(strings.TrimPrefix(hdr.Name, "/"))
 			if err != nil {
-				return err // Not sure, maybe we should continue?
+				return nil, nil, err // Not sure, maybe we should continue?
 			}
-
+			hdr.Name = filenames[i:]
+			hdr.Name = hdr.Name[:strings.IndexRune(hdr.Name, '/')]
+		} else {
+			// For unknown reasons they always seem to end in / unnecessarily. Strip it off.
+			hdr.Name = strings.TrimSuffix(hdr.Name, "/")
 		}
-
-		// For unknown reasons they always seem to end in / unnecessarily. Strip it off.
-		hdr.Name = strings.TrimSuffix(hdr.Name, "/")
-		log.Info("Adding %s from %s, mode %d", hdr.Name, path, hdr.Mode)
-		if err := w.WriteHeader(hdr); err != nil {
-			return err
+		// Normalise all mod times
+		hdr.ModTime = time.Unix(0, 0)
+		log.Info("Adding %s from %s, mode %d, size %d", hdr.Name, path, hdr.Mode, hdr.Size)
+		var buf bytes.Buffer
+		if _, err := io.Copy(&buf, r); err != nil {
+			return nil, nil, err
 		}
-		if _, err := io.Copy(w, r); err != nil {
-			return err
-		}
+		headers = append(headers, hdr)
+		contents = append(contents, buf.Bytes())
 	}
-	return nil
+	return headers, contents, nil
 }
 
 // MatchesSuffix returns true if the given path matches any one of the given suffixes.
@@ -90,4 +123,17 @@ func MatchesSuffix(path string, suffixes []string) bool {
 		}
 	}
 	return false
+}
+
+func deriveIndex(headers []*ar.Header) (*ar.Header, []byte) {
+	var buf bytes.Buffer
+	for _, hdr := range headers {
+		newName := "/" + strconv.Itoa(buf.Len())
+		buf.WriteString(hdr.Name + "/\n")
+		hdr.Name = newName
+	}
+	return &ar.Header{
+		Name: "//",
+		Size: int64(buf.Len()),
+	}, buf.Bytes()
 }
