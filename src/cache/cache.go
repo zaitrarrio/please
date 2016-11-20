@@ -15,7 +15,7 @@ var log = logging.MustGetLogger("cache")
 // NewCache is the factory function for creating a cache setup from the given config.
 func NewCache(config *core.Configuration) *core.Cache {
 	c := newSyncCache(config)
-	if config.Cache.Workers > 0 {
+	if c != nil && config.Cache.Workers > 0 {
 		c := newAsyncCache(*c, config)
 		return &c
 	}
@@ -23,6 +23,15 @@ func NewCache(config *core.Configuration) *core.Cache {
 }
 
 func newSyncCache(config *core.Configuration) *core.Cache {
+	c := newUnlimitedCache(config)
+	if c != nil && config.Cache.MaxSizeFactor > 0 {
+		c := newSizeFactorLimit(*c, config)
+		return &c
+	}
+	return c
+}
+
+func newUnlimitedCache(config *core.Configuration) *core.Cache {
 	mplex := &cacheMultiplexer{}
 	if config.Cache.Dir != "" {
 		mplex.caches = append(mplex.caches, newDirCache(config))

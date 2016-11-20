@@ -51,6 +51,7 @@ var KnownFields = map[string]bool{
 	"PreBuildHash":  true,
 	"PostBuildHash": true,
 	"RuleHash":      true,
+	"BuildDuration": true,
 	"mutex":         true,
 }
 

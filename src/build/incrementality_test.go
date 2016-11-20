@@ -62,6 +62,7 @@ var KnownFields = map[string]bool{
 	"state":               true,
 	"Results":             true, // Recall that unsuccessful test results aren't cached...
 	"BuildingDescription": true,
+	"BuildDuration":       true,
 
 	// Used to save the rule hash rather than actually being hashed itself.
 	"RuleHash": true,

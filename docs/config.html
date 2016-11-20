@@ -121,6 +121,22 @@
 
     <ul>
 
+      <li><b>MaxWorkers</b><br/>
+        Sets the number of background workers that store artifacts.<br/>
+	By default this is the number of CPUs + 2, and artifacts will be stored asynchronously
+	for a small speedup (i.e. you don't have to wait to store the artifacts for one
+	build target in order to build the next one). If set to 0 this behaviour is disabled
+	and they're stored synchronously.</li>
+
+      <li><b>MaxSizeFactor</b> (bytes)<br/>
+        Sets a limit on the size / time of artifacts that we'll cache.<br/>
+	The idea here is to attempt to avoid storing artifacts that are large but easy to
+	recreate locally; in some cases it's faster to just rebuild them on the local
+	machine.<br/>
+	This is specified as a byte size in the config, although it's actually implicitly
+	a rate of bytes per second; the factor is calculated for each target as the size of
+	its output in bytes divided by the time it took to run in seconds.</li>
+
       <li><b>Dir</b><br/>
         Sets the directory to use for the dir cache.<br/>
         The default is <code>.plz-cache</code>, if set to the empty string the dir cache will

@@ -165,7 +165,9 @@ func buildTarget(tid int, state *core.BuildState, target *core.BuildTarget) (err
 	replacedCmd := replaceSequences(target)
 	env := core.StampedBuildEnvironment(state, target, false, cacheKey)
 	log.Debug("Building target %s\nENVIRONMENT:\n%s\n%s", target.Label, strings.Join(env, "\n"), replacedCmd)
+	start := time.Now()
 	out, combined, err := core.ExecWithTimeoutShell(target.TmpDir(), env, target.BuildTimeout, state.Config.Build.Timeout, state.ShowAllOutput, replacedCmd)
+	target.BuildDuration = time.Since(start)
 	if err != nil {
 		if state.Verbosity >= 4 {
 			return fmt.Errorf("Error building target %s: %s\nENVIRONMENT:\n%s\n%s\n%s",

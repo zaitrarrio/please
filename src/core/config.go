@@ -104,6 +104,7 @@ func DefaultConfiguration() *Configuration {
 	config.Build.Timeout = cli.Duration(10 * time.Minute)
 	config.Build.Config = "opt"         // Optimised builds by default
 	config.Build.FallbackConfig = "opt" // Optimised builds as a fallback on any target that doesn't have a matching one set
+	config.Cache.MaxSizeFactor.UnmarshalFlag("10MiB")
 	config.Cache.HttpTimeout = cli.Duration(5 * time.Second)
 	config.Cache.RpcTimeout = cli.Duration(5 * time.Second)
 	config.Cache.Dir = ".plz-cache"
@@ -188,6 +189,7 @@ type Configuration struct {
 	BuildConfig map[string]string
 	Cache       struct {
 		Workers               int
+		MaxSizeFactor         cli.ByteSize
 		Dir                   string
 		DirCacheCleaner       string
 		DirCacheHighWaterMark string

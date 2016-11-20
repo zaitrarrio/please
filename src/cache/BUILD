@@ -66,3 +66,14 @@ go_test(
         '//third_party/go:testify',
     ],
 )
+
+go_test(
+    name = 'size_factor_test',
+    srcs = ['size_factor_test.go'],
+    data = [':test_data'],
+    deps = [
+        ':cache',
+        '//src/core',
+        '//third_party/go:testify',
+    ],
+)

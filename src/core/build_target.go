@@ -84,6 +84,9 @@ type BuildTarget struct {
 	// If true, the rule is given an env var at build time that contains the hash of its
 	// transitive dependencies, which can be used to identify the output in a predictable way.
 	Stamp bool
+	// Indicates that the target can only be depended on by tests or other rules with this set.
+	// Used to restrict non-deployable code and also affects coverage detection.
+	TestOnly bool
 	// Containerisation settings that override the defaults.
 	ContainerSettings *TargetContainerSettings
 	// Results of test, if it is one
@@ -120,9 +123,8 @@ type BuildTarget struct {
 	// Timeouts for build/test actions
 	BuildTimeout time.Duration
 	TestTimeout  time.Duration
-	// Indicates that the target can only be depended on by tests or other rules with this set.
-	// Used to restrict non-deployable code and also affects coverage detection.
-	TestOnly bool
+	// Length of time it actually took to build this target.
+	BuildDuration time.Duration
 	// Extra output files from the test.
 	// These are in addition to the usual test.results output file.
 	TestOutputs []string
