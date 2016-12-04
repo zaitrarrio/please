@@ -1,0 +1,28 @@
+def proguard_binary(name, src, config, out=None, proguard_jar='//third_party/java:proguard',
+                    visibility=None, deps=None):
+    """Runs a single .jar through ProGuard to minify it somewhat.
+
+    Args:
+      name (str): Name of the rule.
+      src (str): Input .jar file (typically a java_binary rule).
+      out (str): Name of output .jar file. Defaults to name + .jar.
+      config (str): Proguard config file.
+      proguard_jar (str): The rule providing the ProGuard .jar. Typically a maven_jar
+                          rule to fetch it from Maven.
+      visibility (list): Visibility of the rule.
+      deps (list): Any other dependencies.
+    """
+    cmd = 'java -jar $TOOL -injar $SRCS_JAR -outjar $OUTS -libraryjars "<java.home>/lib/rt.jar" -include $SRCS_CFG'
+    build_rule(
+        name = name,
+        srcs = {
+            'jar': [src],
+            'cfg': [config],
+        },
+        outs = [out or name + '.jar'],
+        tools = [proguard_jar],
+        cmd = cmd,
+        visibility = visibility,
+        deps = deps,
+        requires = ['java'],
+    )

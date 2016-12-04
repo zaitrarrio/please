@@ -246,7 +246,8 @@ def build_rule(globals_dict, package, name, cmd, test_cmd=None, srcs=None, data=
                                  'meant to use a list of strings instead' % name)
             elif src_list:
                 for src in src_list:
-                    _check_c_error(_add_named_src(target, src_name, src))
+                    if src:
+                        _check_c_error(_add_named_src(target, src_name, src))
     elif srcs:
         for src in srcs:
             if src and src.startswith('/') and not src.startswith('//'):

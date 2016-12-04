@@ -1,9 +1,17 @@
+subinclude('//build_defs:proguard')
+
 java_binary(
-    name = 'junit_runner',
+    name = 'junit_runner_jar',
     main_class = 'build.please.test.TestMain',
     deps = [
         '//src/build/java/build/please/test:junit_runner',
     ],
+)
+
+proguard_binary(
+    name = 'junit_runner',
+    src = ':junit_runner_jar',
+    config = 'junit_runner.pro',
     visibility = ['PUBLIC'],
 )
 
