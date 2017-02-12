@@ -524,6 +524,38 @@ def go_yacc(name, src, out=None, visibility=None, labels=None):
     )
 
 
+def go_standard_library(name, visibility=None, deps=None):
+    """Defines a rule that rebuilds the Go standard library for other architectures.
+
+    This is mostly needed for cross-compiling since Go only ships with a compiled
+    form of its stdlib for the host architecture.
+
+    Typically Please will define one of these rules for you. It is rare that a user
+    would need to invoke it themselves.
+
+    Args:
+      name: Name of the rule.
+      visibility: Visibility declaration.
+      deps: Dependencies.
+    """
+    cmd = ' '.join([
+        'eval `$TOOL env`;',
+        # Minor optimisation: don't do anything if we can use system stdlib.
+        'if [ "$GOARCH" != "$GOHOSTARCH" ]; then',
+        'go install --pkgdir $TMP_DIR/pkg/$ARCH html;',
+        'fi',
+    ])
+    build_rule(
+        name = name,
+        cmd = cmd,
+        tools = _GO_TOOL,
+        outs = ['pkg/$ARCH'],
+        building_description = 'Cross-compiling stdlib...',
+        visibility = visibility,
+        deps = deps,
+    )
+
+
 def _extra_outs(get):
     """Attaches extra outputs to go_get rules."""
     def _inner(name, output):
