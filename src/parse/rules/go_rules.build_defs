@@ -54,7 +54,7 @@ def go_library(name, srcs, out=None, deps=None, visibility=None, test_only=False
     build_rule(
         name=name,
         srcs=srcs,
-        deps=deps + [':_%s#srcs' % name],
+        deps=_go_stdlib_dep(deps + [':_%s#srcs' % name]),
         outs=[out or name + '.a'],
         cmd=_go_library_cmds(complete=complete, all_srcs=_all_srcs),
         visibility=visibility,
@@ -488,7 +488,7 @@ def go_get(name, get=None, outs=None, deps=None, exported_deps=None, visibility=
         name=name,
         srcs=[patch] if patch else [],
         outs=outs,
-        deps=deps,
+        deps=_go_stdlib_dep(deps),
         exported_deps=exported_deps,
         tools=_GO_TOOL,
         visibility=visibility,
@@ -534,25 +534,25 @@ def go_standard_library(name, visibility=None, deps=None):
     would need to invoke it themselves.
 
     Args:
-      name: Name of the rule.
-      visibility: Visibility declaration.
-      deps: Dependencies.
+      name (str): Name of the rule.
+      visibility (list): Visibility declaration.
+      deps (list): Dependencies.
     """
     cmd = ' '.join([
         'eval `$TOOL env`;',
         # Minor optimisation: don't do anything if we can use system stdlib.
         'if [ "$GOARCH" != "$GOHOSTARCH" ]; then',
-        'go install --pkgdir $TMP_DIR/pkg/$ARCH html;',
+        'go install --pkgdir $TMP_DIR/pkg/$ARCH html && ls $TMP_DIR/pkg;',
         'fi',
     ])
     build_rule(
         name = name,
         cmd = cmd,
         tools = _GO_TOOL,
-        outs = ['pkg/$ARCH'],
         building_description = 'Cross-compiling stdlib...',
         visibility = visibility,
         deps = deps,
+        post_build = _collect_rule_outs,
     )
 
 
@@ -627,7 +627,7 @@ def _collect_files(name, tag, dep, outs, extension):
 
 def _collect_rule_outs(name, output):
     for line in output:
-        if line != '_cgo_main.c':
+        if line and line != '_cgo_main.c':
             add_out(name, line)
 
 
@@ -674,3 +674,9 @@ def _collect_linker_flags(static):
         for k, v in cmds.items():
             set_command(name, k, v)
     return collect_linker_flags
+
+
+def _go_stdlib_dep(deps):
+    """Returns the given list of deps, annotated with the system-wide stdlib dep."""
+    deps = deps or []
+    return deps + ['//_system/go:stdlib']
