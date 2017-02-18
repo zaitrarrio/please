@@ -232,6 +232,7 @@ func (graph *BuildGraph) cloneTargetForArch(target *BuildTarget, arch string) *B
 	if present {
 		return t
 	}
+	log.Debug("Cloning %s -> %s [%s]", target.Label, target.Label, arch)
 	graph.targets[archLabel] = target // Sentinel, so we don't recurse into here incorrectly.
 	t = target.toArch(graph, arch)
 	graph.targets[t.Label] = t
