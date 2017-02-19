@@ -464,7 +464,7 @@ def go_get(name, get=None, outs=None, deps=None, exported_deps=None, visibility=
         if not binary:
             post_build = _extra_outs(get)
     cmd = [
-        'export GOPATH=$TMP_DIR:$TMP_DIR/$PKG',
+        'export GOPATH=' + CONFIG.GOPATH,
         'rm -rf pkg src',
         'go get -d ' + get,
     ]
@@ -542,7 +542,7 @@ def go_standard_library(name, visibility=None, deps=None):
         'eval `$TOOL env`;',
         # Minor optimisation: don't do anything if we can use system stdlib.
         'if [ "$GOOS" != "$GOHOSTOS" ] || [ "$GOARCH" != "$GOHOSTARCH" ]; then',
-        'go install --pkgdir $TMP_DIR/pkg/$ARCH html && ls $TMP_DIR/pkg;',
+        '$TOOL install --pkgdir $TMP_DIR/pkg/$ARCH `cd ${GOROOT}/src && $TOOL list ... | grep -v cmd/` && echo pkg/$ARCH;',
         'fi',
     ])
     build_rule(
