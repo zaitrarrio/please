@@ -9,6 +9,7 @@ package parse
 import (
 	"fmt"
 	"path"
+	"strings"
 	"sync"
 
 	"core"
@@ -177,6 +178,10 @@ func getDependingTarget(packageName string) core.BuildLabel {
 // It's assumed that the caller used firstToParse to ascertain that they only call this once per package.
 func parsePackage(state *core.BuildState, label, dependor core.BuildLabel) *core.Package {
 	packageName := label.PackageName
+	if strings.HasPrefix(packageName, systemPackage) {
+		// System packages don't have associated BUILD files. It is annoying if we can't handle those targets though.
+		return parseSystemPackage(state, packageName)
+	}
 	pkg := core.NewPackage(packageName)
 	if pkg.Filename = buildFileName(state, packageName); pkg.Filename == "" {
 		exists := core.PathExists(packageName)

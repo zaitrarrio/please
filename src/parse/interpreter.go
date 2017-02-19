@@ -309,6 +309,13 @@ func parsePackageFile(state *core.BuildState, filename string, pkg *core.Package
 	return ret == pyDeferParse
 }
 
+// parseSystemPackage is analogous to parsePackageFile but only for system packages.
+// We typically only end up in here if the user specifies a system target on the command line.
+func parseSystemPackage(state *core.BuildState, packageName string) *core.Package {
+	initializeOnce.Do(func() { initializeInterpreter(state.Config) })
+	return state.Graph.Package(packageName)
+}
+
 // IsValidTargetName returns true if the given name is valid in a package.
 // This is provided to help error handling on the Python side.
 //export IsValidTargetName
