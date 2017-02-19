@@ -258,7 +258,9 @@ func (graph *BuildGraph) cloneTargetForArch(target *BuildTarget, arch string) *B
 			}
 		} else {
 			for j, d := range dep.deps {
-				dep.deps[j] = graph.cloneTargetForArch(d, arch)
+				d2 := graph.cloneTargetForArch(d, arch)
+				dep.deps[j] = d2
+				graph.revDeps[d2.Label] = append(graph.revDeps[d2.Label], t)
 			}
 		}
 	}
