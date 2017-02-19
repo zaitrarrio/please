@@ -541,7 +541,7 @@ def go_standard_library(name, visibility=None, deps=None):
     cmd = ' '.join([
         'eval `$TOOL env`;',
         # Minor optimisation: don't do anything if we can use system stdlib.
-        'if [ "$GOARCH" != "$GOHOSTARCH" ]; then',
+        'if [ "$GOOS" != "$GOHOSTOS" ] || [ "$GOARCH" != "$GOHOSTARCH" ]; then',
         'go install --pkgdir $TMP_DIR/pkg/$ARCH html && ls $TMP_DIR/pkg;',
         'fi',
     ])
