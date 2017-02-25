@@ -48,6 +48,7 @@ func TestParseTestSourcesFailsGracefully(t *testing.T) {
 func TestWriteTestMain(t *testing.T) {
 	err := WriteTestMain(
 		"tools/please_go_test/test_data",
+		false, // not version 1.8
 		[]string{"tools/please_go_test/test_data/example_test.go"},
 		"test.go",
 		[]CoverVar{},
@@ -63,11 +64,11 @@ func TestWriteTestMain(t *testing.T) {
 func TestWriteTestMainWithCoverage(t *testing.T) {
 	err := WriteTestMain(
 		"tools/please_go_test/test_data",
+		false, // not version 1.8
 		[]string{"tools/please_go_test/test_data/example_test.go"},
 		"test.go",
 		[]CoverVar{{
 			Dir:        "tools/please_go_test/test_data",
-			Package:    "core",
 			ImportPath: "core",
 			Var:        "GoCover_lock_go",
 			File:       "tools/please_go_test/test_data/lock.go",
@@ -90,4 +91,16 @@ func TestExtraImportPaths(t *testing.T) {
 		"_cover0 \"core\"",
 		"_cover1 \"output\"",
 	})
+}
+
+func TestIsVersion18(t *testing.T) {
+	assert.True(t, isVersion18([]byte("go version go1.8beta2 linux/amd64")))
+	assert.True(t, isVersion18([]byte("go version go1.8 linux/amd64")))
+	assert.True(t, isVersion18([]byte("go version go1.8.2 linux/amd64")))
+	assert.False(t, isVersion18([]byte("go version go1.7beta2 linux/amd64")))
+	assert.False(t, isVersion18([]byte("go version go1.7 linux/amd64")))
+	assert.False(t, isVersion18([]byte("go version go1.7.2 linux/amd64")))
+	assert.True(t, isVersion18([]byte("go version go1.10beta2 linux/amd64")))
+	assert.True(t, isVersion18([]byte("go version go1.10 linux/amd64")))
+	assert.True(t, isVersion18([]byte("go version go1.10.2 linux/amd64")))
 }

@@ -97,7 +97,8 @@ func initializeInterpreter(config *core.Configuration) {
 	setConfigValue("PEX_TOOL", config.Python.PexTool)
 	setConfigValue("DEFAULT_PYTHON_INTERPRETER", config.Python.DefaultInterpreter)
 	setConfigValue("PYTHON_MODULE_DIR", config.Python.ModuleDir)
-	setConfigValue("PYTHON_DEFAULT_PIP_REPO", config.Python.DefaultPipRepo)
+	setConfigValue("PYTHON_DEFAULT_PIP_REPO", config.Python.DefaultPipRepo.String())
+	setConfigValue("PYTHON_WHEEL_REPO", config.Python.WheelRepo.String())
 	setConfigValue("USE_PYPI", pythonBool(config.Python.UsePyPI))
 	setConfigValue("JAVAC_TOOL", config.Java.JavacTool)
 	setConfigValue("JAVAC_WORKER", config.Java.JavacWorker)
@@ -109,7 +110,7 @@ func initializeInterpreter(config *core.Configuration) {
 	setConfigValue("JAVA_TARGET_LEVEL", config.Java.TargetLevel)
 	setConfigValue("JAVAC_FLAGS", config.Java.JavacFlags)
 	setConfigValue("JAVAC_TEST_FLAGS", config.Java.JavacTestFlags)
-	setConfigValue("DEFAULT_MAVEN_REPO", config.Java.DefaultMavenRepo)
+	setConfigValue("DEFAULT_MAVEN_REPO", config.Java.DefaultMavenRepo.String())
 	setConfigValue("CC_TOOL", config.Cpp.CCTool)
 	setConfigValue("CPP_TOOL", config.Cpp.CppTool)
 	setConfigValue("LD_TOOL", config.Cpp.LdTool)
@@ -136,6 +137,7 @@ func initializeInterpreter(config *core.Configuration) {
 	setConfigValue("PROTO_PYTHON_DEP", config.Proto.PythonDep)
 	setConfigValue("PROTO_JAVA_DEP", config.Proto.JavaDep)
 	setConfigValue("PROTO_GO_DEP", config.Proto.GoDep)
+	setConfigValue("PROTO_JS_DEP", config.Proto.JsDep)
 	setConfigValue("PROTO_PYTHON_PACKAGE", config.Proto.PythonPackage)
 	setConfigValue("GRPC_PYTHON_DEP", config.Proto.PythonGrpcDep)
 	setConfigValue("GRPC_JAVA_DEP", config.Proto.JavaGrpcDep)
@@ -512,7 +514,7 @@ func parseSource(src, packageName string, systemAllowed bool) (core.BuildInput, 
 		if !systemAllowed {
 			return nil, fmt.Errorf("'%s' (in package %s) is an absolute path; that's not allowed.", src, packageName)
 		}
-		return core.SystemFileLabel{Path: core.ExpandHomePath(src)}, nil
+		return core.SystemFileLabel{Path: src}, nil
 	} else if strings.Contains(src, "/") {
 		// Target is in a subdirectory, check nobody else owns that.
 		for dir := path.Dir(path.Join(packageName, src)); dir != packageName && dir != "."; dir = path.Dir(dir) {
