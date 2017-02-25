@@ -241,7 +241,22 @@ func (graph *BuildGraph) cloneTargetForArch(target *BuildTarget, arch string) *B
 	existingRevdeps := graph.revDeps[target.Label]
 	newRevdeps := make([]*BuildTarget, len(existingRevdeps))
 	for i, r := range existingRevdeps {
-		newRevdeps[i] = graph.cloneTargetForArch(r, arch)
+		if info := r.dependencyInfo(target.Label); info != nil && info.tool {
+			newRevdeps[i] = r // Tools still use the host configuration
+		} else {
+			newRevdeps[i] = graph.cloneTargetForArch(r, arch)
+			if info := newRevdeps[i].dependencyInfo(target.Label); info != nil && info.resolved {
+				for _, dep := range newRevdeps[i].dependencies {
+					for j, d := range dep.deps {
+						if d == target {
+							dep.deps[j] = t
+						}
+					}
+				}
+			} else {
+				graph.linkDependencies(newRevdeps[i], t)
+			}
+		}
 	}
 	graph.revDeps[t.Label] = newRevdeps
 
@@ -256,6 +271,8 @@ func (graph *BuildGraph) cloneTargetForArch(target *BuildTarget, arch string) *B
 			} else {
 				graph.addPendingRevDep(t.Label, dep.declared, nil)
 			}
+		} else if !dep.resolved {
+			graph.addPendingRevDep(t.Label, dep.declared.toArch(arch), nil)
 		} else {
 			for j, d := range dep.deps {
 				d2 := graph.cloneTargetForArch(d, arch)
