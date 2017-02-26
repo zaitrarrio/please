@@ -63,15 +63,6 @@ func Build(tid int, state *core.BuildState, label core.BuildLabel) {
 
 // Builds a single target
 func buildTarget(tid int, state *core.BuildState, target *core.BuildTarget) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			if e, ok := r.(error); ok {
-				err = e
-			} else {
-				err = fmt.Errorf("%s", r)
-			}
-		}
-	}()
 
 	if err := target.CheckDependencyVisibility(state.Graph); err != nil {
 		return err

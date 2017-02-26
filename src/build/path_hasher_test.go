@@ -10,11 +10,9 @@ import (
 	"core"
 )
 
-// N.B. The expected hashes given here are determined empirically - its value is not
-//      based on some underlying truth, but it also cannot change casually since that
-//      may break any users who specify hashes in BUILD files.
-//      The same applies to all following expected hashes.
-const sha256Hash = "L+9gWfLx6xPDCN2Uq87P5IusxDuOQTu7wWlwm2lVAc8"
+// N.B. The expected hashes given here and below are determined empirically - their
+//      values are not based on some underlying truth, but it also cannot change
+//      casually since that may break any users who specify hashes in BUILD files.
 const sha1Hash = "RwNQdxGYd93Aa/trY7QKgX4e+/0"
 
 var content = []byte("testing testing 1 2 3")
@@ -29,12 +27,12 @@ func TestPathHash(t *testing.T) {
 	// Redo the above with SHA256
 	b, err = hasher.PathHash(path, true, false)
 	assert.NoError(t, err)
-	assert.Equal(t, sha256Hash, b64(b))
+	assert.Equal(t, "ZW1UsOowRzFm4TjpCmV8DY/VM4ql6omnGwh6kgaCOnk", b64(b))
 	// If we write a new file and force a recalculation, we should get a new hash.
 	err = ioutil.WriteFile(path, []byte("testing testing 1 2 4"), 0644)
 	assert.NoError(t, err)
 	b, err = hasher.PathHash(path, true, false)
-	assert.Equal(t, "kSM8VDGDQIxID4a6CLCb9i44oaQLfhb+OGkaJWhqiyI", b64(b))
+	assert.Equal(t, "x6sKrKbXC5mJT+3lxYNbIheqjTNx9BccY9YkCuI5iVM", b64(b))
 }
 
 func TestTargetPathHashSHA256(t *testing.T) {
@@ -44,7 +42,7 @@ func TestTargetPathHashSHA256(t *testing.T) {
 	assert.NoError(t, err)
 	b, err := hasher.TargetPathHash(path, target)
 	assert.NoError(t, err)
-	assert.Equal(t, sha256Hash, b64(b))
+	assert.Equal(t, "NUIPkeGJA7cerXW+L/grrtnDHxR9LtUejMeA6VRU3jE", b64(b))
 }
 
 func TestTargetPathHashSHA1(t *testing.T) {
@@ -74,10 +72,10 @@ func TestMovePathHash(t *testing.T) {
 	err := ioutil.WriteFile(path, content, 0644)
 	assert.NoError(t, err)
 	b := hasher.MustPathHash(path, false)
-	assert.Equal(t, sha256Hash, b64(b))
+	assert.Equal(t, "5c8DBLfyeedGorSLH4aJrXtlo2d9q/Ke742hygM2HE4", b64(b))
 	hasher.MovePathHash(path, path2, true)
 	b = hasher.MustPathHash(path2, false)
-	assert.Equal(t, sha256Hash, b64(b))
+	assert.Equal(t, "5c8DBLfyeedGorSLH4aJrXtlo2d9q/Ke742hygM2HE4", b64(b))
 }
 
 func TestPathHashDir(t *testing.T) {
@@ -98,5 +96,5 @@ func TestSymlink(t *testing.T) {
 	assert.NoError(t, err)
 	b, err := hasher.PathHash(path2, false, false)
 	assert.NoError(t, err)
-	assert.Equal(t, "RJew2MLH17tlayiJkfx7ZGs+GhJjr92ztwQsCU79jww", b64(b))
+	assert.Equal(t, "ovS9SIbJdV01H+0pQOLVzWObZI/shDZhYLvKmd1tEkE", b64(b))
 }

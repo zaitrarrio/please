@@ -22,7 +22,7 @@ pip_library(
     name = 'six',
     version = '1.10.0',
     outs = ['six.py'],
-    hashes = ['sha256: b5ab7239fa0c1e2b4c2ce8ff34b17b4eb10b99078c104ca6b084bfb82b3d0e55'],
+    hashes = ['sha256: 694c8cf83198900776b74cf06d98c917ef0d40faaca475ab5edee2281735a4cc'],
 )
 
 pip_library(

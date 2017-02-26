@@ -100,7 +100,10 @@ func (p *pathHasher) HashType(needsSha1 bool) hash.Hash {
 func (p *pathHasher) pathHash(path string, sha1 bool) ([]byte, error) {
 	h := p.HashType(sha1)
 	info, err := os.Lstat(path)
-	if err == nil && info.Mode()&os.ModeSymlink != 0 {
+	if err != nil {
+		return nil, err
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
 		// Dereference symlink and try again
 		deref, err := filepath.EvalSymlinks(path)
 		if err != nil {
@@ -118,7 +121,7 @@ func (p *pathHasher) pathHash(path string, sha1 bool) ([]byte, error) {
 		h.Write(d)
 		return h.Sum(nil), err
 	}
-	if err == nil && info.IsDir() {
+	if info.IsDir() {
 		err = filepath.Walk(path, func(name string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
@@ -138,12 +141,26 @@ func (p *pathHasher) pathHash(path string, sha1 bool) ([]byte, error) {
 				// otherwise rules might be marked as unchanged if they added additional symlinks.
 				h.Write(boolTrueHashValue)
 			} else if !info.IsDir() {
-				return p.fileHash(&h, name)
+				return p.fileHash(h, name)
 			}
 			return nil
 		})
 	} else {
-		err = p.fileHash(&h, path) // let this handle any other errors
+		// In the old (sha1) hashing scheme, we did not hash filename or any permission bits.
+		// This can lead to subtle bugs when the specified output is a directory and filenames
+		// or permission bits change within it. Now we're changing the hashing scheme, the time
+		// has come to add these things in too.
+		if !sha1 {
+			h.Write([]byte(path))
+			// Don't write all the permission bits, w tends to change based on whether things
+			// came back from the cache or not, we know that it is not a directory or a symlink,
+			// and using Please to move around named pipes or char devices seems a bad idea.
+			// The executable bits are definitely relevant though.
+			if info.Mode()&0700 != 0 {
+				h.Write(boolTrueHashValue)
+			}
+		}
+		err = p.fileHash(h, path)
 	}
 	return h.Sum(nil), err
 }
@@ -172,12 +189,12 @@ func (p *pathHasher) ensureRelative(path string) string {
 }
 
 // fileHash calculates the hash of a single file
-func (p *pathHasher) fileHash(h *hash.Hash, filename string) error {
+func (p *pathHasher) fileHash(h hash.Hash, filename string) error {
 	file, err := os.Open(filename)
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(*h, file)
+	_, err = io.Copy(h, file)
 	file.Close()
 	return err
 }
