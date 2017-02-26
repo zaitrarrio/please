@@ -79,8 +79,9 @@ func TestSymlinkedOutputs(t *testing.T) {
 	target.Command = "ln -s $SRC $OUT"
 	err := buildTarget(1, state, target)
 	assert.NoError(t, err)
-	// Unchanged because input and output are the same.
-	assert.Equal(t, core.Unchanged, target.State())
+	// Symlinks no longer automatically count as the same file.
+	// Build rules generally should not output them so this shouldn't present a huge problem.
+	assert.Equal(t, core.Built, target.State())
 }
 
 func TestPreBuildFunction(t *testing.T) {
