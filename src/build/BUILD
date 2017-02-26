@@ -55,3 +55,14 @@ go_test(
         '//third_party/go:testify',
     ],
 )
+
+go_test(
+    name = 'path_hasher_test',
+    srcs = ['path_hasher_test.go'],
+    data = ['test_data'],
+    deps = [
+        ':build',
+        '//src/core',
+        '//third_party/go:testify',
+    ],
+)

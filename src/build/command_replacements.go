@@ -155,7 +155,7 @@ func replaceSequence(target *core.BuildTarget, in string, runnable, multiple, di
 		}
 	}
 	if hash {
-		return base64.RawURLEncoding.EncodeToString(mustPathHash(path.Join(target.Label.PackageName, in)))
+		return base64.RawURLEncoding.EncodeToString(hasher.MustTargetPathHash(path.Join(target.Label.PackageName, in), target))
 	}
 	if strings.HasPrefix(in, "/") {
 		return in // Absolute path, probably on a tool or system src.

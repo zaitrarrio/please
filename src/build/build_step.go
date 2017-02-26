@@ -3,7 +3,6 @@ package build
 
 import (
 	"bytes"
-	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -349,7 +348,7 @@ func moveOutputs(state *core.BuildState, target *core.BuildTarget) ([]string, bo
 
 func moveOutput(target *core.BuildTarget, tmpOutput, realOutput string, filegroup bool) (bool, error) {
 	// hash the file
-	newHash, err := pathHash(tmpOutput, false)
+	newHash, err := hasher.TargetPathHash(tmpOutput, target)
 	if err != nil {
 		return true, err
 	}
@@ -360,11 +359,11 @@ func moveOutput(target *core.BuildTarget, tmpOutput, realOutput string, filegrou
 	// own the same file).
 	if filegroup && realOutputExists && core.IsSameFile(tmpOutput, realOutput) {
 		log.Debug("real output %s is same file", realOutput)
-		movePathHash(tmpOutput, realOutput, filegroup) // make sure this is updated regardless
+		hasher.MovePathHash(tmpOutput, realOutput, filegroup) // make sure this is updated regardless
 		return false, nil
 	}
 	if realOutputExists {
-		if oldHash, err := pathHash(realOutput, false); err != nil {
+		if oldHash, err := hasher.TargetPathHash(realOutput, target); err != nil {
 			return true, err
 		} else if bytes.Equal(oldHash, newHash) {
 			// We already have the same file in the current location. Don't bother moving it.
@@ -375,7 +374,7 @@ func moveOutput(target *core.BuildTarget, tmpOutput, realOutput string, filegrou
 			return true, err
 		}
 	}
-	movePathHash(tmpOutput, realOutput, filegroup)
+	hasher.MovePathHash(tmpOutput, realOutput, filegroup)
 	// Check if we need a directory for this output.
 	dir := path.Dir(realOutput)
 	if !core.PathExists(dir) {
@@ -438,12 +437,13 @@ func calculateAndCheckRuleHash(state *core.BuildState, target *core.BuildTarget)
 
 // OutputHash calculates the hash of a target's outputs.
 func OutputHash(target *core.BuildTarget) ([]byte, error) {
-	h := sha1.New()
+	sha1 := hasher.NeedsSHA1Hash(target)
+	h := hasher.HashType(sha1)
 	for _, output := range target.Outputs() {
-		// NB. Always force a recalculation of the output hashes here. Memoisation is not
-		//     useful because by definition we are rebuilding a target, and can actively hurt
-		//     in cases where we compare the retrieved cache artifacts with what was there before.
-		h2, err := pathHash(path.Join(target.OutDir(), output), true)
+		// N.B. Always force a recalculation of the output hashes here. Memoisation is not
+		//      useful because by definition we are rebuilding a target, and can actively hurt
+		//      in cases where we compare the retrieved cache artifacts with what was there before.
+		h2, err := hasher.PathHash(path.Join(target.OutDir(), output), true, sha1)
 		if err != nil {
 			return nil, err
 		}
@@ -452,18 +452,23 @@ func OutputHash(target *core.BuildTarget) ([]byte, error) {
 	return h.Sum(nil), nil
 }
 
-// Verify the hash of output files for a rule match the ones set on it.
+// canonicalHash canonicalises a hash string.
+// Essentially this strips off arbitrary preceding labels (like "sha1:" etc)
+func canonicalHash(hash string) string {
+	if index := strings.LastIndexByte(hash, ':'); index != -1 {
+		return strings.TrimSpace(hash[index+1:])
+	}
+	return hash
+}
+
+// checkRuleHashes verifies the hash of output files for a rule match the ones set on it.
 func checkRuleHashes(target *core.BuildTarget, hash []byte) error {
 	if len(target.Hashes) == 0 {
 		return nil // nothing to check
 	}
 	hashStr := hex.EncodeToString(hash)
 	for _, okHash := range target.Hashes {
-		// Hashes can have an arbitrary label prefix. Strip it off if present.
-		if index := strings.LastIndexByte(okHash, ':'); index != -1 {
-			okHash = strings.TrimSpace(okHash[index+1:])
-		}
-		if okHash == hashStr {
+		if canonicalHash(okHash) == hashStr {
 			return nil
 		}
 	}

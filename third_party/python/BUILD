@@ -3,7 +3,7 @@ package(default_visibility = ['PUBLIC'])
 pip_library(
     name = 'pex',
     version = '1.1.20',
-    hashes = ['sha1: e410ca1d350e852e705299b31c6c9ea7658257a4'],
+    hashes = ['sha256: d9103f602dc9d915a6e2c2d2a3d8a67ee3c49e1b2e0855b0008b534b50b3b176'],
     patch = [
         'never_cache_pex.patch',
         'bytecode_timestamps.patch',
@@ -14,7 +14,7 @@ pip_library(
     name = 'xmlrunner',
     package_name = 'unittest-xml-reporting',
     version = '1.11.0',
-    hashes = ['sha1: 62e71134eb068413e40fe4d973451c0e4931db5a'],
+    hashes = ['sha256: 4ba8380f99daf6fe951dea05f05977bc4129ca71da8303971b05e7e8ce917f97'],
     deps = [':six'],
 )
 
@@ -22,27 +22,21 @@ pip_library(
     name = 'six',
     version = '1.10.0',
     outs = ['six.py'],
-    hashes = ['sha1: 460beba667fbd2b7a050df6a456e0269260b385a'],
+    hashes = ['sha256: b5ab7239fa0c1e2b4c2ce8ff34b17b4eb10b99078c104ca6b084bfb82b3d0e55'],
 )
 
 pip_library(
     name = 'pkg_resources',
     package_name = 'setuptools',
     version = '33.1.1',
-    hashes = ['sha1: 05f20a29a5dff7dd5b908afcf37c2b1bea8d3db6'],
-)
-
-filegroup(
-    name = 'coverage_pex_patch',
-    srcs = ['coverage_pex.patch'],
-    visibility = ['PUBLIC'],
+    hashes = ['sha256: 1176f44404a33b10662a117131a72627a623189fb6b6b649b9023f0e5124b443'],
 )
 
 pip_library(
     name = 'requests',
     version = '2.5.0',
     hashes = [
-        'sha1: e43b552c4a6063d32b8c9bf742fb3e9ce579c4d8',
+        'sha256: bcad599053aed5aaa6079760171e6c04cfade75d80d1362f40d0b959d53e0337',
     ],
     test_only = True,  # Not used by plz itself.
 )
@@ -52,7 +46,7 @@ pip_library(
     package_name = 'python-dateutil',
     version = '2.4.0',
     hashes = [
-        'sha1: 62b97c332a2c118b8957d324d7ad3cbcc1f4f9eb',
+        'sha256: 94234e68e7cf65f3ab564cc4016451f6027feddc3a02bd922dfb5489569efcfc',
     ],
     test_only = True,  # Not used by plz itself.
     deps = [':six'],
