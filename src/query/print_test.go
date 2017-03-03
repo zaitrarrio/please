@@ -65,3 +65,9 @@ func TestAllFieldsArePresentAndAccountedFor(t *testing.T) {
 		}
 	}
 }
+
+func TestMarshalJSON(t *testing.T) {
+	target := core.BuildTarget{}
+	graph := core.NewGraph()
+
+}

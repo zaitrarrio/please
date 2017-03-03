@@ -1,14 +1,92 @@
 package query
 
-import "core"
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+	"reflect"
+	"regexp"
+	"strconv"
 
-// QueryPrint produces a Python call which would (hopefully) regenerate the same build rule if run.
+	"core"
+)
+
+// sliceRe is used to parse selectors like [2] on slices.
+var sliceRe = regexp.MustCompile(`^\[(\d+)\](.*)$`)
+
+// mapRe is used to parse selectors like [test] on maps.
+var mapRe = regexp.MustCompile(`^\[("[^\]]+"|[^\]"]+)\](.*)$`)
+
+// Print produces a Python call which would (hopefully) regenerate the same build rule if run.
 // This is of course not ideal since they were almost certainly created as a java_library
 // or some similar wrapper rule, but we've lost that information by now.
-func QueryPrint(graph *core.BuildGraph, labels []core.BuildLabel) {
+func Print(graph *core.BuildGraph, labels []core.BuildLabel, JSON bool, selectors []string) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Fatalf("%s", r)
+		}
+	}()
+	printLabels(graph, labels, JSON, selectors)
+}
+
+func printLabels(graph *core.BuildGraph, labels []core.BuildLabel, JSON bool, selectors []string) {
 	for _, label := range labels {
 		target := graph.TargetOrDie(label)
+		if len(selectors) == 0 {
+			if target.IsFilegroup {
+				fmt.Printf("  filegroup(\n")
+			} else {
+				fmt.Printf("  build_rule(\n")
+			}
+			printField(reflect.ValueOf(target), JSON, "", "    ")
+			fmt.Printf("  )\n\n")
+		} else {
+			for _, s := range selectors {
+				printField(reflect.ValueOf(target), JSON, s, "")
+			}
+		}
+	}
+}
+
+func printField(v reflect.Value, JSON bool, selector string, indent string) {
+	printf := func(f string, args ...interface{}) { fmt.Printf("%s"+f, indent, args...) }
+	panicf := func(f string, args ...interface{}) { panic(fmt.Sprintf(f, args...)) }
+	selector = strings.TrimLeft(selector, ".")
+	if selector != "" {
+		if matches := sliceRe.FindStringSubmatch(selector); len(matches) == 2 && v.Kind() == reflect.Slice {
+			i, _ := strconv.Atoi(matches[0])
+			printField(v.Index(i), JSON, matches[1], indent)
+		} else if matches := mapRe.FindStringSubmatch(selector); len(matches) == 2 && v.Kind() == reflect.Map {
+			printField(v.MapIndex(reflect.ValueOf(matches[0])), JSON, matches[1], indent)
+		} else if selector[0] == '[' {
+			panicf("Failed to parse selector: %s", selector)
+		} else if v.Kind() != reflect.Struct {
+			panicf("Can't select %s, field doesn't have subfields", selector)
+		} else {
+			parts := strings.SplitN(selector, 1)
+			field := v.FieldByName(parts[0])
+			if !field.IsValid() {
+				panicf("Unknown field %s", parts[0])
+			}
+			printField(field, JSON, parts[1], indent)
+		}
+		return
+	}
+	// print this entire structure.
+	if v.Kind() == reflect.Pointer {
+		v = v.Elem()
+	}
+	if JSON {
+		b, err := json.MarshalIndent(v.Interface(), indent, "    ")
+		if err != nil {
+			panicf("Failed to marshal JSON: %s", err)
+		}
+		fmt.Println(string(b))
+		return
+	}
+}
+
+func blah() {
+	if false {
 		fmt.Printf("%s:\n", label)
 		if target.IsFilegroup {
 			fmt.Printf("  filegroup(\n")
