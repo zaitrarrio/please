@@ -53,6 +53,11 @@ type cacheNode struct {
 	hashEnd   uint32
 }
 
+func init() {
+	// Change grpc to log using our implementation
+	grpclog.SetLogger(&grpcLogMabob{})
+}
+
 func (cache *rpcCache) Store(target *core.BuildTarget, key []byte, files ...string) {
 	if cache.isConnected() && cache.Writeable {
 		log.Debug("Storing %s in RPC cache...", target.Label)
@@ -234,8 +239,6 @@ func (cache *rpcCache) Clean(target *core.BuildTarget) {
 func (cache *rpcCache) Shutdown() {}
 
 func (cache *rpcCache) connect(url string, config *core.Configuration, isSubnode bool) {
-	// Change grpc to log using our implementation
-	grpclog.SetLogger(&grpcLogMabob{})
 	log.Info("Connecting to RPC cache at %s", url)
 	opts := []grpc.DialOption{grpc.WithTimeout(cache.timeout)}
 	if config.Cache.RpcPublicKey != "" || config.Cache.RpcCACert != "" || config.Cache.RpcSecure {

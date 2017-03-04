@@ -93,7 +93,7 @@ go_get(
 go_get(
     name = 'testify',
     get = 'github.com/stretchr/testify',
-    revision = 'f390dcf405f7b83c997eac1b06768bb9f44dec18',
+    revision = '4d4bfba8f1d1027c4fdbe371823030df51419987',
 )
 
 go_get(

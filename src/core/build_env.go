@@ -22,7 +22,6 @@ func ExpandHomePath(path string) string {
 // BuildEnvironment creates the shell env vars to be passed
 // into the exec.Command calls made by plz. Use test=true for plz test targets.
 func BuildEnvironment(state *BuildState, target *BuildTarget, test bool) []string {
-	sources := target.AllSourcePaths(state.Graph)
 	env := []string{
 		"PKG=" + target.Label.PackageName,
 		"PKG_DIR=" + target.Label.PackageDir(),
@@ -41,6 +40,7 @@ func BuildEnvironment(state *BuildState, target *BuildTarget, test bool) []strin
 		env = append(env, "GOROOT="+state.Config.Go.GoRoot)
 	}
 	if !test {
+		sources := target.AllSourcePaths(state.Graph)
 		env = append(env,
 			"TMP_DIR="+path.Join(RepoRoot, target.TmpDir()),
 			"SRCS="+strings.Join(sources, " "),

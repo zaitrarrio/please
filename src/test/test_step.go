@@ -43,8 +43,8 @@ func test(tid int, state *core.BuildState, label core.BuildLabel, target *core.B
 	hashStr := base64.RawURLEncoding.EncodeToString(hash)
 	resultsFileName := fmt.Sprintf(".test_results_%s_%s", label.Name, hashStr)
 	coverageFileName := fmt.Sprintf(".test_coverage_%s_%s", label.Name, hashStr)
-	outputFile := path.Join(target.TestDir(), "test.results")
-	coverageFile := path.Join(target.TestDir(), "test.coverage")
+	outputFile := target.TestResultsFile()
+	coverageFile := target.TestCoverageFile()
 	cachedOutputFile := path.Join(target.OutDir(), resultsFileName)
 	cachedCoverageFile := path.Join(target.OutDir(), coverageFileName)
 	needCoverage := state.NeedCoverage && !target.NoTestOutput
@@ -290,6 +290,14 @@ func prepareAndRunTest(tid int, state *core.BuildState, target *core.BuildTarget
 	if err = prepareTestDir(state.Graph, target); err != nil {
 		state.LogBuildError(tid, target.Label, core.TargetTestFailed, err, "Failed to prepare test directory for %s: %s", target.Label, err)
 		return []byte{}, err
+	}
+	if len(state.Config.Test.RemoteWorker) > 0 && target.ShouldInclude(state.Config.Test.RemoteLabels, state.Config.Test.LocalLabels) {
+		state.LogBuildResult(tid, target.Label, core.TargetTesting, "Running test remotely...")
+		if out, err := runTestRemotely(state, target); err == nil {
+			return out, err
+		} else {
+			log.Warning("Failed to run test remotely: %s. Will attempt to run locally.", err)
+		}
 	}
 	return runPossiblyContainerisedTest(state, target)
 }

@@ -65,6 +65,7 @@ func ReadConfigFiles(filenames []string) (*Configuration, error) {
 	setDefault(&config.Cover.FileExtension, []string{".go", ".py", ".java", ".js", ".cc", ".h", ".c"})
 	setDefault(&config.Cover.ExcludeExtension, []string{".pb.go", "_pb2.py", ".pb.cc", ".pb.h", "_test.py", "_test.go", "_pb.go", "_bindata.go", "_test_main.cc"})
 	setDefault(&config.Proto.Language, []string{"cc", "py", "java", "go", "js"})
+	setDefault(&config.Test.LocalLabels, []string{"local"})
 
 	// Default values for these guys depend on config.Please.Location.
 	defaultPath(&config.Cache.DirCacheCleaner, config.Please.Location, "cache_cleaner")
@@ -218,6 +219,9 @@ type Configuration struct {
 	Test               struct {
 		Timeout          cli.Duration            `help:"Default timeout applied to all tests. Can be overridden on a per-rule basis."`
 		DefaultContainer ContainerImplementation `help:"Sets the default type of containerisation to use for tests that are given container = True.\nCurrently the only option is 'docker' but we intend to add rkt support at some point."`
+		RemoteWorker     []cli.URL               `help:"URL of remote workers to run tests. These will be crudely load-balanced between client-side. If this isn't set then all tests are run locally.\n\nSee please_test_worker for more information on running the workers."`
+		RemoteLabels     []string                `help:"Defines a set of labels that tests are required to have at least one of to be run remotely. If this is empty then any test can be run remotely when remoteworker is set."`
+		LocalLabels      []string                `help:"Defines a set of labels that force a test to be run locally when applied."`
 	}
 	Cover struct {
 		FileExtension    []string `help:"Extensions of files to consider for coverage.\nDefaults to a reasonably obvious set for the builtin rules including .go, .py, .java, etc."`
