@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"sync"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -19,9 +20,14 @@ import (
 var log = logging.MustGetLogger("please_test_worker")
 
 // A Worker implements our remote test worker protocol.
-type Worker struct{}
+// Note that it will only execute one test simultaneously. Further RPCs will block until the previous ones are complete.
+type Worker struct {
+	sync.Mutex
+}
 
 func (w *Worker) Test(ctx context.Context, req *pb.TestRequest) (*pb.TestResponse, error) {
+	w.Lock()
+	defer w.Unlock()
 	// Build a sufficient representation of the target that we can call the preexisting code for this.
 	state := core.NewBuildState(1, nil, 2, core.DefaultConfiguration())
 	target := core.NewBuildTarget(core.BuildLabel{PackageName: req.Rule.PackageName, Name: req.Rule.Name})
@@ -30,7 +36,6 @@ func (w *Worker) Test(ctx context.Context, req *pb.TestRequest) (*pb.TestRespons
 	state.TestArgs = req.TestName
 	state.Config.Build.Path = req.Path
 	target.NoTestOutput = req.NoOutput
-	target.AddOutput(req.Binary.Filename)
 	dir := target.TestDir()
 	log.Notice("Received test request for %s", target.Label)
 
@@ -38,8 +43,11 @@ func (w *Worker) Test(ctx context.Context, req *pb.TestRequest) (*pb.TestRespons
 	defer w.cleanup(dir)
 
 	// Write the required files
-	if err := w.writeFile(dir, req.Binary); err != nil {
-		return w.error("Failed to write test file: %s", err)
+	if req.Binary != nil && req.Binary.Filename != "" {
+		target.AddOutput(req.Binary.Filename)
+		if err := w.writeFile(dir, req.Binary); err != nil {
+			return w.error("Failed to write test file: %s", err)
+		}
 	}
 	for _, df := range req.Data {
 		if err := w.writeFile(dir, df); err != nil {

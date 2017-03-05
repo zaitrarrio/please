@@ -9,9 +9,9 @@ import (
 
 var opts = struct {
 	Usage      string
+	Verbosity  int          `short:"v" long:"verbose" default:"2" description:"Verbosity of output (higher number = more output)"`
 	Port       int          `short:"p" long:"port" default:"7792" description:"Port to serve on"`
 	MaxMsgSize cli.ByteSize `long:"max_msg_size" default:"500M" description:"Maximum size of message we will accept"`
-	Verbosity  int          `short:"v" long:"verbose" default:"2" description:"Verbosity of output (higher number = more output)"`
 }{
 	Usage: `
 please_test_worker is an implementation of Please's remote test worker protocol.

@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -18,10 +20,7 @@ import (
 	pb "test/proto/worker"
 )
 
-// runTestRemotely runs a single test against a remote worker and returns the output & any error.
-// It assembles the output files in the target's temp directory.
-// TODO(pebers): probably we should minimise the required file writing here and return the
-//               information without writing it?
+// runTestRemotely runs a single test against a remote worker and returns the output, results & any error.
 func runTestRemotely(state *core.BuildState, target *core.BuildTarget) ([]byte, [][]byte, []byte, error) {
 	client, err := manager.GetClient(state.Config)
 	if err != nil {
@@ -42,20 +41,32 @@ func runTestRemotely(state *core.BuildState, target *core.BuildTarget) ([]byte, 
 		Path:     state.Config.Build.Path,
 	}
 	// Attach the test binary to the request
-	b, err := ioutil.ReadFile(path.Join(target.OutDir(), target.Outputs()[0]))
-	if err != nil {
-		return nil, nil, nil, err
+	if outputs := target.Outputs(); len(outputs) == 1 {
+		b, err := ioutil.ReadFile(path.Join(target.OutDir(), outputs[0]))
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		request.Binary = &pb.DataFile{Filename: target.Outputs()[0], Contents: b}
 	}
-	request.Binary = &pb.DataFile{Filename: target.Outputs()[0], Contents: b}
 	// Attach its runtime files
 	for _, datum := range target.Data {
-		fullPaths := datum.FullPaths(state.Graph)
-		for i, path := range datum.Paths(state.Graph) {
-			b, err := ioutil.ReadFile(fullPaths[i])
-			if err != nil {
+		for _, fullPath := range datum.FullPaths(state.Graph) {
+			// Might be a directory, we have to walk it.
+			if err := filepath.Walk(fullPath, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				} else if !info.IsDir() {
+					if b, err := ioutil.ReadFile(path); err != nil {
+						return err
+					} else {
+						fn := strings.TrimLeft(strings.TrimPrefix(path, target.OutDir()), "/")
+						request.Data = append(request.Data, &pb.DataFile{Filename: fn, Contents: b})
+					}
+				}
+				return nil
+			}); err != nil {
 				return nil, nil, nil, err
 			}
-			request.Data = append(request.Data, &pb.DataFile{Filename: path, Contents: b})
 		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -68,7 +79,7 @@ func runTestRemotely(state *core.BuildState, target *core.BuildTarget) ([]byte, 
 	} else if !response.Success {
 		return nil, nil, nil, fmt.Errorf("Failed to run test: %s", strings.Join(response.Messages, "\n"))
 	} else if !response.ExitSuccess {
-		return response.Output, response.Results, response.Coverage, fmt.Errorf("process exited unsuccessfully")
+		return response.Output, response.Results, response.Coverage, remoteTestFailed
 	}
 	return response.Output, response.Results, response.Coverage, nil
 }

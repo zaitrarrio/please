@@ -21,6 +21,10 @@ import (
 
 var log = logging.MustGetLogger("test")
 
+// remoteTestFailed is the error we return when a test runs remotely but exits unsuccessfully.
+// It's special because it implies we shouldn't try to rerun locally.
+var remoteTestFailed = fmt.Errorf("process exited unsuccessfully")
+
 const dummyOutput = "=== RUN DummyTest\n--- PASS: DummyTest (0.00s)\nPASS\n"
 const dummyCoverage = "<?xml version=\"1.0\" ?><coverage></coverage>"
 
@@ -321,7 +325,7 @@ func LoadResultsAndCoverage(target *core.BuildTarget) ([][]byte, []byte) {
 func prepareAndRunTest(tid int, state *core.BuildState, target *core.BuildTarget) (out []byte, results [][]byte, coverage []byte, err error) {
 	if len(state.Config.Test.RemoteWorker) > 0 && target.ShouldInclude(state.Config.Test.RemoteLabels, state.Config.Test.LocalLabels) {
 		state.LogBuildResult(tid, target.Label, core.TargetTesting, "Running test remotely...")
-		if out, results, coverage, err := runTestRemotely(state, target); err == nil {
+		if out, results, coverage, err := runTestRemotely(state, target); err == nil || err == remoteTestFailed {
 			return out, results, coverage, err
 		} else {
 			log.Warning("Failed to run test remotely: %s. Will attempt to run locally.", err)
