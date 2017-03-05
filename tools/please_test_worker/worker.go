@@ -93,13 +93,13 @@ func (w *Worker) cleanup(dir string) {
 }
 
 // ServeGrpcForever starts a new server on the given port and serves gRPC until killed.
-func ServeGrpcForever(port int) {
-	s, lis := startGrpcServer(port)
+func ServeGrpcForever(port, maxMsgSize int) {
+	s, lis := startGrpcServer(port, maxMsgSize)
 	s.Serve(lis)
 }
 
 // startGrpcServer starts a gRPC server on the given port and returns it.
-func startGrpcServer(port int) (*grpc.Server, net.Listener) {
+func startGrpcServer(port, maxMsgSize int) (*grpc.Server, net.Listener) {
 	repoRoot, err := os.Getwd()
 	if err != nil {
 		log.Fatalf("Failed to determine working directory: %s", err)
@@ -109,7 +109,7 @@ func startGrpcServer(port int) (*grpc.Server, net.Listener) {
 	if err != nil {
 		log.Fatalf("%s", err)
 	}
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.MaxMsgSize(maxMsgSize))
 	pb.RegisterTestWorkerServer(s, &Worker{})
 	log.Notice("Serving test worker on port %d", port)
 	return s, lis

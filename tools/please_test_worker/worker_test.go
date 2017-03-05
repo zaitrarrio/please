@@ -21,7 +21,7 @@ PASS
 `
 
 func init() {
-	s, lis := startGrpcServer(0)
+	s, lis := startGrpcServer(0, 10000000)
 	go s.Serve(lis)
 	address = lis.Addr().String()
 }

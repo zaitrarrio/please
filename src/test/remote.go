@@ -1,4 +1,5 @@
 // +build proto
+
 package test
 
 import (

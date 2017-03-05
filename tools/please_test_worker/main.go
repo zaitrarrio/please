@@ -8,9 +8,10 @@ import (
 )
 
 var opts = struct {
-	Usage     string
-	Port      int `short:"p" long:"port" default:"7792" description:"Port to serve on"`
-	Verbosity int `short:"v" long:"verbose" default:"2" description:"Verbosity of output (higher number = more output)"`
+	Usage      string
+	Port       int          `short:"p" long:"port" default:"7792" description:"Port to serve on"`
+	MaxMsgSize cli.ByteSize `long:"max_msg_size" default:"500M" description:"Maximum size of message we will accept"`
+	Verbosity  int          `short:"v" long:"verbose" default:"2" description:"Verbosity of output (higher number = more output)"`
 }{
 	Usage: `
 please_test_worker is an implementation of Please's remote test worker protocol.
@@ -25,5 +26,5 @@ beyond that available on a single machine. As yet it remains untested at scale.
 func main() {
 	cli.ParseFlagsOrDie("please_test_worker", "7.7.0", &opts)
 	cli.InitLogging(opts.Verbosity)
-	worker.ServeGrpcForever(opts.Port)
+	worker.ServeGrpcForever(opts.Port, int(opts.MaxMsgSize))
 }

@@ -157,7 +157,7 @@ func test(tid int, state *core.BuildState, label core.BuildLabel, target *core.B
 		target.Results.TimedOut = err == context.DeadlineExceeded
 		coverage, _ = parseTestCoverage(target, coverageData)
 		target.Results.Duration += duration
-		if !core.PathExists(outputFile) {
+		if len(resultsData) == 0 {
 			if err == nil && target.NoTestOutput {
 				target.Results.NumTests += 1
 				target.Results.Passed += 1
