@@ -79,8 +79,9 @@ func BuildEnvironment(state *BuildState, target *BuildTarget, test bool) []strin
 		}
 	} else {
 		env = append(env, "TEST_DIR="+path.Join(RepoRoot, target.TestDir()))
+		env = append(env, "RESULTS_FILE="+path.Join(RepoRoot, target.TestResultsFile()))
 		if state.NeedCoverage {
-			env = append(env, "COVERAGE=true", "COVERAGE_FILE="+path.Join(RepoRoot, target.TestDir(), "test.coverage"))
+			env = append(env, "COVERAGE=true", "COVERAGE_FILE="+path.Join(RepoRoot, target.TestCoverageFile()))
 		}
 		if len(target.Outputs()) > 0 {
 			env = append(env, "TEST="+path.Join(RepoRoot, target.TestDir(), target.Outputs()[0]))

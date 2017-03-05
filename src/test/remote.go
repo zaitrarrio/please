@@ -38,6 +38,7 @@ func runTestRemotely(state *core.BuildState, target *core.BuildTarget) ([]byte, 
 		Timeout:  int32(timeout.Seconds()),
 		Labels:   target.Labels,
 		NoOutput: target.NoTestOutput,
+		Path:     state.Config.Build.Path,
 	}
 	// Attach the test binary to the request
 	b, err := ioutil.ReadFile(path.Join(target.OutDir(), target.Outputs()[0]))

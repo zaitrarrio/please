@@ -273,7 +273,8 @@ func prepareTestDir(graph *core.BuildGraph, target *core.BuildTarget) error {
 	return nil
 }
 
-func runTest(state *core.BuildState, target *core.BuildTarget) ([]byte, [][]byte, []byte, error) {
+// RunTest runs a test in its test directory and returns the results.
+func RunTest(state *core.BuildState, target *core.BuildTarget) ([]byte, [][]byte, []byte, error) {
 	replacedCmd := build.ReplaceTestSequences(target, target.GetTestCommand())
 	env := core.BuildEnvironment(state, target, true)
 	if len(state.TestArgs) > 0 {

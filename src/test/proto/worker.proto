@@ -38,6 +38,8 @@ message TestRequest {
     repeated string labels = 7;
     // True if the target will not produce test output.
     bool no_output = 8;
+    // PATH environment variable to set for this test.
+    repeated string path = 10;
 }
 
 message TestResponse {

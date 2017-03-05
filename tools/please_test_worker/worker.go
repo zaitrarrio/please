@@ -1,12 +1,14 @@
 package worker
 
 import (
+	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
-	"os/exec"
 	"path"
 
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 	"gopkg.in/op/go-logging.v1"
 
 	"core"
@@ -26,31 +28,35 @@ func (w *Worker) Test(ctx context.Context, req *pb.TestRequest) (*pb.TestRespons
 	target.TestCommand = req.Command
 	state.NeedCoverage = req.Coverage
 	state.TestArgs = req.TestName
+	state.Config.Build.Path = req.Path
 	target.NoTestOutput = req.NoOutput
+	target.AddOutput(req.Binary.Filename)
 	dir := target.TestDir()
 
 	// From here on, if anything goes wrong, remove the temp directory.
 	defer w.cleanup(dir)
 
 	// Write the required files
-	if err := w.writeFile(target, req.Binary); err != nil {
-		return nil, err
+	if err := w.writeFile(dir, req.Binary); err != nil {
+		return w.error("Failed to write test file: %s", err)
 	}
 	for _, df := range req.Data {
-		if err := w.writeFile(target, df); err != nil {
-			return nil, err
+		if err := w.writeFile(dir, df); err != nil {
+			return w.error("Failed to write test data file: %s", err)
 		}
 	}
-
-	out, err := test.RunTest(state, target)
-	response := &pb.TestResponse{
+	out, results, coverage, err := test.RunTest(state, target)
+	if err != nil {
+		log.Error("Test failed: %s %s", err, out)
+	}
+	return &pb.TestResponse{
 		Rule:        req.Rule,
 		Success:     true,
 		ExitSuccess: err == nil,
 		Output:      out,
-	}
-	// Read test results file & coverage file
-	b, err := ioutil
+		Results:     results,
+		Coverage:    coverage,
+	}, nil
 }
 
 // writeFile is a convenience wrapper to create one of the test files & any needed directories.
@@ -62,7 +68,18 @@ func (w *Worker) writeFile(dir string, df *pb.DataFile) error {
 	if err := os.MkdirAll(path.Dir(filename), core.DirPermissions); err != nil {
 		return err
 	}
+	log.Notice("Writing temp test file %s", filename)
 	return ioutil.WriteFile(filename, df.Contents, 0755)
+}
+
+// error produces a response proto containing given error text.
+// Note that it does not produce an error object, that should only be used for the
+// RPC itself failing.
+func (w *Worker) error(msg string, err error) (*pb.TestResponse, error) {
+	return &pb.TestResponse{
+		Success:  false,
+		Messages: []string{fmt.Sprintf(msg, err)},
+	}, nil
 }
 
 // cleanup removes the temporary test directory.
@@ -72,4 +89,26 @@ func (w *Worker) cleanup(dir string) {
 	if err := os.RemoveAll(dir); err != nil {
 		log.Error("Failed to remove temporary test directory: %s", err)
 	}
+}
+
+// ServeGrpcForever starts a new server on the given port and serves gRPC until killed.
+func ServeGrpcForever(port int) {
+	s, lis := startGrpcServer(port)
+	s.Serve(lis)
+}
+
+// startGrpcServer starts a gRPC server on the given port and returns it.
+func startGrpcServer(port int) (*grpc.Server, net.Listener) {
+	repoRoot, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Failed to determine working directory: %s", err)
+	}
+	core.RepoRoot = repoRoot // This needs to be set for later.
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		log.Fatalf("%s", err)
+	}
+	s := grpc.NewServer()
+	pb.RegisterTestWorkerServer(s, &Worker{})
+	return s, lis
 }

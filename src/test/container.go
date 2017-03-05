@@ -63,17 +63,17 @@ func runPossiblyContainerisedTest(state *core.BuildState, target *core.BuildTarg
 		if state.Config.Test.DefaultContainer == core.ContainerImplementationNone {
 			log.Warning("Target %s specifies that it should be tested in a container, but test "+
 				"containers are disabled in your .plzconfig.", target.Label)
-			return runTest(state, target)
+			return RunTest(state, target)
 		}
 		out, results, coverage, err = runContainerisedTest(state, target)
 		if err != nil && state.Config.Docker.AllowLocalFallback {
 			log.Warning("Failed to run %s containerised: %s %s. Falling back to local version.",
 				target.Label, out, err)
-			return runTest(state, target)
+			return RunTest(state, target)
 		}
 		return out, results, coverage, err
 	}
-	return runTest(state, target)
+	return RunTest(state, target)
 }
 
 // retrieveResultsAndRemoveContainer copies the test.results file out of the Docker container and into
