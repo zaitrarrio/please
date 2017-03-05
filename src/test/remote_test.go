@@ -36,28 +36,24 @@ func init() {
 func TestRunTestRemotelyNoResults(t *testing.T) {
 	state, target := getState("//package:test_run_test_remotely")
 	target.NoTestOutput = true
-	out, err := runTestRemotely(state, target)
+	out, _, _, err := runTestRemotely(state, target)
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("ok"), out)
 }
 
 func TestRunTestRemotelyResults(t *testing.T) {
 	state, target := getState("//package:test_results")
-	out, err := runTestRemotely(state, target)
+	out, r, c, err := runTestRemotely(state, target)
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("ok"), out)
-	b, err := ioutil.ReadFile(target.TestResultsFile())
-	assert.NoError(t, err)
-	assert.Equal(t, []byte(results), b)
-	b, err = ioutil.ReadFile(target.TestCoverageFile())
-	assert.NoError(t, err)
-	assert.Equal(t, []byte(coverage), b)
+	assert.Equal(t, [][]byte{[]byte(results)}, r)
+	assert.Equal(t, []byte(coverage), c)
 }
 
 func TestRunTestRemotelyData(t *testing.T) {
 	state, target := getState("//package:test_data")
 	target.Data = append(target.Data, target.Label)
-	out, err := runTestRemotely(state, target)
+	out, _, _, err := runTestRemotely(state, target)
 	assert.NoError(t, err)
 	assert.Equal(t, []byte("ok"), out)
 }
@@ -65,7 +61,7 @@ func TestRunTestRemotelyData(t *testing.T) {
 func TestRunRemotelyRPCError(t *testing.T) {
 	state, target := getState("//package:test_rpc_error")
 	target.NoTestOutput = true
-	_, err := runTestRemotely(state, target)
+	_, _, _, err := runTestRemotely(state, target)
 	assert.Error(t, err)
 }
 
@@ -74,26 +70,29 @@ type worker struct{}
 func (w *worker) Test(ctx context.Context, req *pb.TestRequest) (*pb.TestResponse, error) {
 	if req.Rule.Name == "test_run_test_remotely" {
 		return &pb.TestResponse{
-			Rule:    req.Rule,
-			Success: true,
-			Output:  []byte("ok"),
+			Rule:        req.Rule,
+			Success:     true,
+			Output:      []byte("ok"),
+			ExitSuccess: true,
 		}, nil
 	} else if req.Rule.Name == "test_results" {
 		return &pb.TestResponse{
-			Rule:     req.Rule,
-			Success:  true,
-			Output:   []byte("ok"),
-			Results:  [][]byte{[]byte(results)},
-			Coverage: []byte(coverage),
+			Rule:        req.Rule,
+			Success:     true,
+			Output:      []byte("ok"),
+			Results:     [][]byte{[]byte(results)},
+			Coverage:    []byte(coverage),
+			ExitSuccess: true,
 		}, nil
 	} else if req.Rule.Name == "test_data" {
 		if len(req.Data) == 0 {
 			return nil, fmt.Errorf("Missing data")
 		}
 		return &pb.TestResponse{
-			Rule:    req.Rule,
-			Success: true,
-			Output:  []byte("ok"),
+			Rule:        req.Rule,
+			Success:     true,
+			Output:      []byte("ok"),
+			ExitSuccess: true,
 		}, nil
 	}
 	return nil, fmt.Errorf("unknown target: %s", req.Rule.Name)

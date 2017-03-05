@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -51,8 +52,8 @@ func test(tid int, state *core.BuildState, label core.BuildLabel, target *core.B
 
 	cachedTest := func() {
 		log.Debug("Not re-running test %s; got cached results.", label)
-		coverage := parseCoverageFile(target, cachedCoverageFile)
-		results, err := parseTestResults(target, cachedOutputFile, true)
+		coverage, _ := parseCoverageFile(target, cachedCoverageFile)
+		results, err := parseTestResultsFile(target, cachedOutputFile)
 		target.Results.Duration = time.Since(startTime).Seconds()
 		target.Results.Cached = true
 		if err != nil {
@@ -60,7 +61,7 @@ func test(tid int, state *core.BuildState, label core.BuildLabel, target *core.B
 		} else if results.Failed > 0 {
 			panic("Test results with failures shouldn't be cached.")
 		} else {
-			logTestSuccess(state, tid, label, &results, &coverage)
+			logTestSuccess(state, tid, label, results, &coverage)
 		}
 	}
 
@@ -138,7 +139,7 @@ func test(tid int, state *core.BuildState, label core.BuildLabel, target *core.B
 		if numRuns > 1 {
 			state.LogBuildResult(tid, label, core.TargetTesting, fmt.Sprintf("Testing (%d of %d)...", i+1, numRuns))
 		}
-		out, err := prepareAndRunTest(tid, state, target)
+		out, resultsData, coverageData, err := prepareAndRunTest(tid, state, target)
 		duration := time.Since(startTime).Seconds()
 		startTime = time.Now() // reset this for next time
 
@@ -154,7 +155,7 @@ func test(tid int, state *core.BuildState, label core.BuildLabel, target *core.B
 			target.Results.Output = err.Error()
 		}
 		target.Results.TimedOut = err == context.DeadlineExceeded
-		coverage = parseCoverageFile(target, coverageFile)
+		coverage, _ = parseTestCoverage(target, coverageData)
 		target.Results.Duration += duration
 		if !core.PathExists(outputFile) {
 			if err == nil && target.NoTestOutput {
@@ -183,7 +184,7 @@ func test(tid int, state *core.BuildState, label core.BuildLabel, target *core.B
 				resultMsg = fmt.Sprintf("Test failed with no results. Output: %s", string(out))
 			}
 		} else {
-			results, err2 := parseTestResults(target, outputFile, false)
+			results, err2 := parseTestResults(target, resultsData)
 			if err2 != nil {
 				resultErr = err2
 				resultMsg = fmt.Sprintf("Couldn't parse test output file: %s. Stdout: %s", err2, string(out))
@@ -272,7 +273,7 @@ func prepareTestDir(graph *core.BuildGraph, target *core.BuildTarget) error {
 	return nil
 }
 
-func runTest(state *core.BuildState, target *core.BuildTarget) ([]byte, error) {
+func runTest(state *core.BuildState, target *core.BuildTarget) ([]byte, [][]byte, []byte, error) {
 	replacedCmd := build.ReplaceTestSequences(target, target.GetTestCommand())
 	env := core.BuildEnvironment(state, target, true)
 	if len(state.TestArgs) > 0 {
@@ -282,33 +283,54 @@ func runTest(state *core.BuildState, target *core.BuildTarget) ([]byte, error) {
 	}
 	log.Debug("Running test %s\nENVIRONMENT:\n%s\n%s", target.Label, strings.Join(env, "\n"), replacedCmd)
 	_, out, err := core.ExecWithTimeoutShell(target.TestDir(), env, target.TestTimeout, state.Config.Test.Timeout, state.ShowAllOutput, replacedCmd)
-	return out, err
+	results, coverage := LoadResultsAndCoverage(target)
+	return out, results, coverage, err
+}
+
+// LoadResultsAndCoverage reads the results files and (optional) coverage file for a target.
+func LoadResultsAndCoverage(target *core.BuildTarget) ([][]byte, []byte) {
+	results := [][]byte{}
+	if !target.NoTestOutput {
+		if err := filepath.Walk(target.TestResultsFile(), func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			} else if !info.IsDir() {
+				b, err := ioutil.ReadFile(path)
+				if err != nil {
+					return err
+				}
+				results = append(results, b)
+			}
+			return nil
+		}); err != nil {
+			log.Error("Failed to load test results file: %s", err)
+		}
+	}
+	if coverage, err := ioutil.ReadFile(target.TestCoverageFile()); err != nil && os.IsNotExist(err) {
+		return results, nil // Coverage file is optional.
+	} else if err != nil {
+		log.Error("Failed to read coverage for %s: %s", target.Label, err)
+		return results, nil
+	} else {
+		return results, coverage
+	}
 }
 
 // prepareAndRunTest sets up a test directory and runs the test.
-func prepareAndRunTest(tid int, state *core.BuildState, target *core.BuildTarget) (out []byte, err error) {
+func prepareAndRunTest(tid int, state *core.BuildState, target *core.BuildTarget) (out []byte, results [][]byte, coverage []byte, err error) {
 	if len(state.Config.Test.RemoteWorker) > 0 && target.ShouldInclude(state.Config.Test.RemoteLabels, state.Config.Test.LocalLabels) {
 		state.LogBuildResult(tid, target.Label, core.TargetTesting, "Running test remotely...")
-		if out, err := runTestRemotely(state, target); err == nil {
-			return out, err
+		if out, results, coverage, err := runTestRemotely(state, target); err == nil {
+			return out, results, coverage, err
 		} else {
 			log.Warning("Failed to run test remotely: %s. Will attempt to run locally.", err)
 		}
 	}
 	if err = prepareTestDir(state.Graph, target); err != nil {
 		state.LogBuildError(tid, target.Label, core.TargetTestFailed, err, "Failed to prepare test directory for %s: %s", target.Label, err)
-		return []byte{}, err
+		return nil, nil, nil, err
 	}
 	return runPossiblyContainerisedTest(state, target)
-}
-
-// Parses the coverage output for a single target.
-func parseCoverageFile(target *core.BuildTarget, coverageFile string) core.TestCoverage {
-	coverage, err := parseTestCoverage(target, coverageFile)
-	if err != nil {
-		log.Errorf("Failed to parse coverage file for %s: %s", target.Label, err)
-	}
-	return coverage
 }
 
 // RemoveCachedTestFiles removes any cached test or coverage result files for a target.

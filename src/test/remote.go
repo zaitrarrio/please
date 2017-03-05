@@ -21,10 +21,10 @@ import (
 // It assembles the output files in the target's temp directory.
 // TODO(pebers): probably we should minimise the required file writing here and return the
 //               information without writing it?
-func runTestRemotely(state *core.BuildState, target *core.BuildTarget) ([]byte, error) {
+func runTestRemotely(state *core.BuildState, target *core.BuildTarget) ([]byte, [][]byte, []byte, error) {
 	client, err := manager.GetClient(state.Config)
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	timeout := target.TestTimeout
 	if timeout == 0 {
@@ -42,7 +42,7 @@ func runTestRemotely(state *core.BuildState, target *core.BuildTarget) ([]byte, 
 	// Attach the test binary to the request
 	b, err := ioutil.ReadFile(path.Join(target.OutDir(), target.Outputs()[0]))
 	if err != nil {
-		return nil, err
+		return nil, nil, nil, err
 	}
 	request.Binary = &pb.DataFile{Filename: target.Outputs()[0], Contents: b}
 	// Attach its runtime files
@@ -51,7 +51,7 @@ func runTestRemotely(state *core.BuildState, target *core.BuildTarget) ([]byte, 
 		for i, path := range datum.Paths(state.Graph) {
 			b, err := ioutil.ReadFile(fullPaths[i])
 			if err != nil {
-				return nil, err
+				return nil, nil, nil, err
 			}
 			request.Data = append(request.Data, &pb.DataFile{Filename: path, Contents: b})
 		}
@@ -62,25 +62,13 @@ func runTestRemotely(state *core.BuildState, target *core.BuildTarget) ([]byte, 
 	if err != nil {
 		// N.B. we only get an error here if something failed structurally about the RPC - it is
 		//      not an error if we communicate failure in the response.
-		return nil, err
+		return nil, nil, nil, err
+	} else if !response.Success {
+		return nil, nil, nil, fmt.Errorf("Failed to run test: %s", strings.Join(response.Messages, "\n"))
+	} else if !response.ExitSuccess {
+		return response.Output, response.Results, response.Coverage, fmt.Errorf("process exited unsuccessfully")
 	}
-	if !response.Success {
-		return nil, fmt.Errorf("Failed to run test: %s", strings.Join(response.Messages, "\n"))
-	}
-	if !target.NoTestOutput {
-		if err := ioutil.WriteFile(target.TestResultsFile(), response.Results[0], 0644); err != nil {
-			return nil, err
-		}
-	}
-	if len(response.Coverage) > 0 {
-		if err := ioutil.WriteFile(target.TestCoverageFile(), response.Coverage, 0644); err != nil {
-			return nil, err
-		}
-	}
-	if !response.ExitSuccess {
-		return response.Output, fmt.Errorf("process exited unsuccessfully")
-	}
-	return response.Output, nil
+	return response.Output, response.Results, response.Coverage, nil
 }
 
 type clientManager struct {
