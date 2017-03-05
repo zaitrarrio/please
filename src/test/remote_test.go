@@ -83,7 +83,7 @@ func (w *worker) Test(ctx context.Context, req *pb.TestRequest) (*pb.TestRespons
 			Rule:     req.Rule,
 			Success:  true,
 			Output:   []byte("ok"),
-			Results:  []byte(results),
+			Results:  [][]byte{[]byte(results)},
 			Coverage: []byte(coverage),
 		}, nil
 	} else if req.Rule.Name == "test_data" {

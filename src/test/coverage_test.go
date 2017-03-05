@@ -3,8 +3,8 @@ package test
 import (
 	"testing"
 
+	"github.com/peterebden/tools/cover"
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/tools/cover"
 
 	"core"
 )

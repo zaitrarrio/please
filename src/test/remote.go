@@ -68,7 +68,7 @@ func runTestRemotely(state *core.BuildState, target *core.BuildTarget) ([]byte, 
 		return nil, fmt.Errorf("Failed to run test: %s", strings.Join(response.Messages, "\n"))
 	}
 	if !target.NoTestOutput {
-		if err := ioutil.WriteFile(target.TestResultsFile(), response.Results, 0644); err != nil {
+		if err := ioutil.WriteFile(target.TestResultsFile(), response.Results[0], 0644); err != nil {
 			return nil, err
 		}
 	}

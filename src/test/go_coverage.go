@@ -7,7 +7,7 @@
 package test
 
 import "bytes"
-import "golang.org/x/tools/cover"
+import "github.com/peterebden/tools/cover"
 
 import "core"
 
