@@ -32,6 +32,7 @@ func (w *Worker) Test(ctx context.Context, req *pb.TestRequest) (*pb.TestRespons
 	target.NoTestOutput = req.NoOutput
 	target.AddOutput(req.Binary.Filename)
 	dir := target.TestDir()
+	log.Notice("Received test request for %s", target.Label)
 
 	// From here on, if anything goes wrong, remove the temp directory.
 	defer w.cleanup(dir)
@@ -110,5 +111,6 @@ func startGrpcServer(port int) (*grpc.Server, net.Listener) {
 	}
 	s := grpc.NewServer()
 	pb.RegisterTestWorkerServer(s, &Worker{})
+	log.Notice("Serving test worker on port %d", port)
 	return s, lis
 }

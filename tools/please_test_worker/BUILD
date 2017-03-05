@@ -13,6 +13,7 @@ go_library(
 
 go_binary(
     name = 'please_test_worker',
+    srcs = ['main.go'],
     deps = [
         ':worker',
         '//src/cli',
