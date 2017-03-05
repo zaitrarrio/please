@@ -20,7 +20,9 @@ message TestRequest {
     // The rule label
     BuildLabel rule = 1;
     // The test binary to run.
-    bytes binary = 2;
+    DataFile binary = 2;
+    // The command to run.
+    string command = 9;
     // Any additional data files required for the test at runtime.
     repeated DataFile data = 3;
     // True if the test is being run for coverage (i.e. through plz cover)
@@ -46,10 +48,10 @@ message TestResponse {
     bool success = 2;
     // Any messages reported. On failure these should indicate what's gone wrong.
     repeated string messages = 3;
-    // Exit code of the test.
-    int32 exit_code = 4;
+    // True if the process exited successfully (i.e. exit code 0).
+    bool exit_success = 4;
     // Test results (unparsed, just the file contents)
-    bytes results = 5;
+    repeated bytes results = 5;
     // Coverage results, if coverage was run.
     bytes coverage = 6;
     // Output of the test (i.e. what was printed to stderr).

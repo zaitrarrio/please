@@ -30,20 +30,21 @@ func runTestRemotely(state *core.BuildState, target *core.BuildTarget) ([]byte, 
 	if timeout == 0 {
 		timeout = time.Duration(state.Config.Test.Timeout)
 	}
-	// Attach the test binary to the request
-	b, err := ioutil.ReadFile(path.Join(target.OutDir(), target.Outputs()[0]))
-	if err != nil {
-		return nil, err
-	}
 	request := pb.TestRequest{
 		Rule:     &pb.BuildLabel{PackageName: target.Label.PackageName, Name: target.Label.Name},
-		Binary:   b,
+		Command:  target.GetTestCommand(),
 		Coverage: state.NeedCoverage,
 		TestName: state.TestArgs,
 		Timeout:  int32(timeout.Seconds()),
 		Labels:   target.Labels,
 		NoOutput: target.NoTestOutput,
 	}
+	// Attach the test binary to the request
+	b, err := ioutil.ReadFile(path.Join(target.OutDir(), target.Outputs()[0]))
+	if err != nil {
+		return nil, err
+	}
+	request.Binary = &pb.DataFile{Filename: target.Outputs()[0], Contents: b}
 	// Attach its runtime files
 	for _, datum := range target.Data {
 		fullPaths := datum.FullPaths(state.Graph)
@@ -75,6 +76,9 @@ func runTestRemotely(state *core.BuildState, target *core.BuildTarget) ([]byte, 
 		if err := ioutil.WriteFile(target.TestCoverageFile(), response.Coverage, 0644); err != nil {
 			return nil, err
 		}
+	}
+	if !response.ExitSuccess {
+		return response.Output, fmt.Errorf("process exited unsuccessfully")
 	}
 	return response.Output, nil
 }

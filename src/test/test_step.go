@@ -287,10 +287,6 @@ func runTest(state *core.BuildState, target *core.BuildTarget) ([]byte, error) {
 
 // prepareAndRunTest sets up a test directory and runs the test.
 func prepareAndRunTest(tid int, state *core.BuildState, target *core.BuildTarget) (out []byte, err error) {
-	if err = prepareTestDir(state.Graph, target); err != nil {
-		state.LogBuildError(tid, target.Label, core.TargetTestFailed, err, "Failed to prepare test directory for %s: %s", target.Label, err)
-		return []byte{}, err
-	}
 	if len(state.Config.Test.RemoteWorker) > 0 && target.ShouldInclude(state.Config.Test.RemoteLabels, state.Config.Test.LocalLabels) {
 		state.LogBuildResult(tid, target.Label, core.TargetTesting, "Running test remotely...")
 		if out, err := runTestRemotely(state, target); err == nil {
@@ -298,6 +294,10 @@ func prepareAndRunTest(tid int, state *core.BuildState, target *core.BuildTarget
 		} else {
 			log.Warning("Failed to run test remotely: %s. Will attempt to run locally.", err)
 		}
+	}
+	if err = prepareTestDir(state.Graph, target); err != nil {
+		state.LogBuildError(tid, target.Label, core.TargetTestFailed, err, "Failed to prepare test directory for %s: %s", target.Label, err)
+		return []byte{}, err
 	}
 	return runPossiblyContainerisedTest(state, target)
 }
