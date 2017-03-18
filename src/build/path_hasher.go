@@ -20,13 +20,15 @@ import (
 // Please is often performance-bound by hashing so the memoisation is still worth a little
 // exposed complexity.
 type pathHasher struct {
-	pathHashMemoizer map[string][]byte `guard:"pathHashMutex"`
-	pathHashMutex    sync.RWMutex
+	sha1Hashes   map[string][]byte `guard:"mutex"`
+	sha256Hashes map[string][]byte `guard:"mutex"`
+	mutex        sync.RWMutex
 }
 
 // hasher is the singleton pathHasher.
 var hasher = pathHasher{
-	pathHashMemoizer: map[string][]byte{},
+	sha1Hashes:   map[string][]byte{},
+	sha256Hashes: map[string][]byte{},
 }
 
 // PathHash calculates the hash of a single path which might be a file or a directory.
@@ -36,19 +38,23 @@ var hasher = pathHasher{
 // for output hashes.
 func (p *pathHasher) PathHash(path string, recalc bool, sha1 bool) ([]byte, error) {
 	path = p.ensureRelative(path)
+	m := p.sha256Hashes
+	if sha1 {
+		m = p.sha1Hashes
+	}
 	if !recalc {
-		p.pathHashMutex.RLock()
-		cached, present := p.pathHashMemoizer[path]
-		p.pathHashMutex.RUnlock()
+		p.mutex.RLock()
+		cached, present := m[path]
+		p.mutex.RUnlock()
 		if present {
 			return cached, nil
 		}
 	}
 	result, err := p.pathHash(path, sha1)
 	if err == nil {
-		p.pathHashMutex.Lock()
-		p.pathHashMemoizer[path] = result
-		p.pathHashMutex.Unlock()
+		p.mutex.Lock()
+		m[path] = result
+		p.mutex.Unlock()
 	}
 	return result, err
 }
@@ -66,7 +72,7 @@ func (p *pathHasher) TargetPathHash(path string, target *core.BuildTarget) ([]by
 func (p *pathHasher) NeedsSHA1Hash(target *core.BuildTarget) bool {
 	for _, h := range target.Hashes {
 		// SHA1 hashes are 40 characters long when hex-encoded. SHA256 would be 64 characters.
-		if strings.HasPrefix(h, "sha1:") || (len(canonicalHash(h)) == 40 && !strings.HasPrefix(h, "sha256:")) {
+		if strings.Contains(h, "sha1:") || (len(canonicalHash(h)) == 40 && !strings.HasPrefix(h, "sha256:")) {
 			return true
 		}
 	}
@@ -170,12 +176,22 @@ func (p *pathHasher) pathHash(path string, sha1 bool) ([]byte, error) {
 func (p *pathHasher) MovePathHash(oldPath, newPath string, copy bool) {
 	oldPath = p.ensureRelative(oldPath)
 	newPath = p.ensureRelative(newPath)
-	p.pathHashMutex.Lock()
-	defer p.pathHashMutex.Unlock()
-	p.pathHashMemoizer[newPath] = p.pathHashMemoizer[oldPath]
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	p.movePathHash(p.sha1Hashes, oldPath, newPath, copy)
+	p.movePathHash(p.sha256Hashes, oldPath, newPath, copy)
+}
+
+// movePathHash implements the internal move for one map once the lock is already acquired.
+func (p *pathHasher) movePathHash(m map[string][]byte, oldPath, newPath string, copy bool) {
+	v, present := m[oldPath]
+	if !present {
+		return
+	}
+	m[newPath] = v
 	// If the path is in plz-out/tmp we aren't ever going to use it again, so free some space.
 	if !copy && strings.HasPrefix(oldPath, core.TmpDir) {
-		delete(p.pathHashMemoizer, oldPath)
+		delete(m, oldPath)
 	}
 }
 
